@@ -1,0 +1,138 @@
+---
+title: "Assignment2"
+author: "Anna"
+date: "2024-11-02"
+output: html_document
+---
+```{r packages}
+library(tidyverse)
+library(ggplot2)
+library(dplyr)
+library(dslabs)
+library(car)
+install.packages("carData")
+library(carData)
+```
+
+## Part 1.
+Load the 'divorce_margarine' dataset from the 'dslabs' package. Investigate the correlation
+between margarine consumption and divorce rates in Maine. Would an increase in the
+preference for margarine lead to skyrocketing divorce rates?
+
+```{r loading the dataset + cleaning}
+divorce_margarine <- dslabs::divorce_margarine
+
+divorce_margarine$divorce <- as.numeric(divorce_margarine$divorce_rate_maine)
+divorce_margarine$margarine <- as.numeric(divorce_margarine$margarine_consumption_per_capita)
+```
+
+```{r finding correlation measure between the variables}
+cor.test(divorce_margarine$divorce, divorce_margarine$margarine)
+```
+The correlation coefficient of 0.99 indicates a strong positive correlation between margarine consumption and divorce rates in Maine, which is plotted below. However, it is important to note that correlation does not imply causation and thus, it cannot be implied that an increase in margarine consumption would lead to increased divorce rates in Maine. However, it is likely that there is a confounding variable that is influencing both margarine consumption and divorce rates in Maine and therefore leading to the positive relationship between the two variables.
+```{r plotting the correlation between margarine consumption and divorce rates in Maine}
+ggplot(divorce_margarine, aes(x = margarine, y = divorce)) +
+  geom_point(position = "jitter") +
+  geom_smooth(method = "lm", se = FALSE) +
+  labs(title = "Margarine consumption and divorce rates in Maine",
+       x = "Margarine consumption",
+       y = "Divorce rate")
+
+
+# should i also make an lm model??
+```
+
+
+## Part 2.
+Load the ‘GSSvocab’ dataset from the ‘car’ package. This dataset contains people’s scores on
+an English vocabulary test and includes demographic information.
+Filter for the year 1978 and remove rows with missing values (the function na.exclude() is one
+way to do this – check out the documentation!).
+Is a person’s score on the vocabulary test (‘vocab’) significantly impacted by their level of
+education (‘educ’)? Visualize the relationship in a plot and build a model. Briefly explain the
+results.
+
+```{r loading in the data}
+load("~/Downloads/GSSvocab.RData")
+
+# filtering the year 1978 and removing rows with missing values
+data <- GSSvocab %>% filter(year == 1978) %>% na.exclude()
+
+
+```
+
+```{r visualizing the relationship}
+ggplot(data, aes(x = educ, y = vocab)) +
+  geom_point(position = "jitter") +
+  geom_smooth(method = "lm", se = FALSE) +
+  labs(title = "Relationship between level of education and vocabulary test score",
+       x = "Level of education",
+       y = "Vocabulary test score")
+
+```
+
+
+```{r Impact of score on level of education?}
+model1 <- lm(vocab~educ, data)
+summary(model1)
+
+```
+The model output shows, that for each added level of education, the vocabulary test score increases by 0.39. The p-value of 0.0001 indicates that the relationship between the level of education and the vocabulary test score is statistically significant. The R-squared value of 0.288 implies that the model explains 28,8% of the variance in the data. The plot shows a positive relationship between the level of education and the vocabulary test score, indicating that people with higher levels of education tend to have higher vocabulary test scores.
+
+## Part 2 (continued)
+Whether a person is the native of an English-speaking country (‘nativeBorn’) could potentially
+have an impact on the size of their vocabulary. Visualize the relationship and add the predictor
+to the model. Briefly explain the results.
+
+```{r adding nativeBorn to the model}
+
+# plot with nativeBorn
+ggplot(data, aes(x = educ, y = vocab, group = nativeBorn)) +
+  geom_point(position = "jitter") +
+  geom_smooth(aes(color = nativeBorn), method = "lm", se = FALSE) +
+  labs(title = "Relationship between educ and vocabulary test score",
+       x = "Native of an English-speaking country",
+       y = "Vocabulary test score")
+
+# model with natuveBorn
+model2 <- lm(vocab~educ + nativeBorn, data)
+summary(model2)
+```
+The model summary shows that when a person is a native of an English-speaking country, their vocabulary test score is 0.65 higher than for non-natives. The R-squared value of 0.29 reveals that the model now accounts for slightly more of the data. The plot shows that people who are natives of English-speaking countries tend to have higher vocabulary test scores compared to non-natives.
+
+## Part 2 (continued)
+Does a person’s level of education depend on whether they are a native of the country?
+Visualize the relationship. Do you think it makes sense to add the relationship as an interaction
+term? Try creating the model and briefly explain the results.
+Which model performs best?
+When creating plots, try to play around with the options of ggplot2 – add titles and axis labels,
+and consider using colours.
+
+```{r relationship between level of education and nativeBorn}
+
+# plotting the relationship between level of education and nativeBorn
+ggplot(data, aes(x = nativeBorn, y = educ)) +
+  geom_boxplot(fill = "lightblue") +
+  geom_jitter(width = 0.2, alpha = 0.5) +  # Adds points for individual data
+  labs(
+    title = "Education Level by Native English-speaking Country Status",
+    x = "Native of an English-speaking Country",
+    y = "Level of Education"
+  )
+
+```
+
+```{r interaction model}
+model3 <- lm(vocab~ educ*nativeBorn, data)
+summary(model3)
+
+```
+The model summary shows that a non-nativeborn with an education level of 0 would be estimated to have a vocab score of 0.35. For each level of education added, the vocab for the non-native will increase with 0.41. If the person is nativeborn, the vocab score for 0 levels of education is 0.35 + 0.95, while interaction term between education and nativeborn reveals that for each level of education added, the nativeborns vocab score increases with 0.02 **less** than the nonnative, ie it increases with 0.41-0.02. The p values reveal that the interaction between level of education and whether a person is a native of an English-speaking country is not statistically significant (p-value = 0.6), likewise the nativeBorn variable is insignificant for the model as well (0.18). The R-squared value of 0.29 indicates that the model explains 29% of the variance in the data, which is equal to the second model. Thus, the model that includes the interaction term does not perform better than the model that includes only the main effects of education and nativeBorn. Therefore, it does not make sense to include the interaction term in the model, which is also underlined by the comparison of models underneath. This is already revealed by the box plot - indicating that there is no difference in the average level of education between natives and non-natives of English-speaking countries. 
+
+```{r finding the best model}
+anova(model1,model2,model3)
+```
+
+The ANOVA test shows that the model with the main effects of education and nativeBorn (model2) is the best model as the p-value reveals it is significantly better than model1 while model3, the model including the interaction effect between education and nativeBorn, is not significantly better than model2.
+
+
